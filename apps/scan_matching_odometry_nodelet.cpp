@@ -375,7 +375,7 @@ namespace radar_graph_slam
 
     /**
      * @name:
-     * @description: Briefly describe the function of your function
+     * @description:  
      * @param {TwistWithCovarianceStampedConstPtr} &twistMsg
      * @param {PointCloud2ConstPtr} &cloud_msg
      * @return {*}
@@ -395,7 +395,7 @@ namespace radar_graph_slam
       double egovel_cum_x = twistMsg->twist.twist.linear.x * dt;
       double egovel_cum_y = twistMsg->twist.twist.linear.y * dt;
       double egovel_cum_z = twistMsg->twist.twist.linear.z * dt;
-      // If too large, set 0
+      // If too large, set 0 dsds ds  ADASdsads ddsadsd
       if (pow(egovel_cum_x, 2) + pow(egovel_cum_y, 2) + pow(egovel_cum_z, 2) > pow(max_egovel_cum, 2))
       {
         ;
@@ -413,9 +413,7 @@ namespace radar_graph_slam
       // 执行点云匹配算法，得到变换矩阵(从起点开始到当前位置的总变换)
       // 第一个重点算法：Matching
       Eigen::Matrix4d pose = matching(cloud_msg->header.stamp, cloud);
-
-      std::cout << pose << std::endl;
-
+    
       geometry_msgs::TwistWithCovariance twist = twistMsg->twist;
 
       // 发布radar里程计信息
@@ -515,7 +513,8 @@ namespace radar_graph_slam
         guess = prev_trans_s2s * msf_delta.matrix();
 
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-      // 执行点云匹配算法，此处调用 pcl::Registration<PointT, PointT>::Ptr
+      // 执行点云匹配算法，在此处调用 fast-apdgicp
+      // 转换后的结果存放在aligned
       registration_s2s->align(*aligned, guess.cast<float>());
       chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
       double time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1).count();
@@ -534,7 +533,7 @@ namespace radar_graph_slam
         else
           return keyframe_pose_s2s * prev_trans_s2s;
       }
-      Eigen::Matrix4d trans_s2s = registration_s2s->getFinalTransformation().cast<double>();
+      Eigen::Matrix4d trans_s2s = registration_s2s->getFinalTransformation().cast<double>(); // 获取变换矩阵
       odom_s2s_now = keyframe_pose_s2s * trans_s2s; // 通过求解出来的变换矩阵，将上时刻keyframe变换到当前时刻
 
       Eigen::Matrix4d trans_s2m;
@@ -654,6 +653,7 @@ namespace radar_graph_slam
 
       // 关键帧选择/更新策略
       //********** Decided whether to accept the frame as a key frame or not **********
+      // 规则： 计算当前帧与之前最新的关键帧之间的姿态变化大小（过小则不认为是一个关键帧，也就是说需要前后关键帧之间需要移动一定的距离）
       if (keyframe_updater->decide(Eigen::Isometry3d(odom_s2s_now), stamp))
       {
         // Loose Coupling the IMU roll & pitch
@@ -667,11 +667,12 @@ namespace radar_graph_slam
 
         keyframe_cloud_s2s = filtered;
         registration_s2s->setInputTarget(keyframe_cloud_s2s);
-        keyframe_pose_s2s = odom_s2s_now;
+        keyframe_pose_s2s = odom_s2s_now;  // 不断迭代，其结果是当前时刻与起始时刻的位姿变换
         keyframe_stamp = stamp;
         prev_time = stamp;
         prev_trans_s2s.setIdentity();
 
+        // 添加新的关键帧
         double accum_d = keyframe_updater->get_accum_distance();
         KeyFrame::Ptr keyframe(new KeyFrame(keyframe_index, stamp, Eigen::Isometry3d(odom_s2s_now.cast<double>()), accum_d, cloud));
         keyframe_index++;
@@ -711,6 +712,7 @@ namespace radar_graph_slam
       if (enable_scan_to_map)
         return odom_s2m_now;
       else
+        // std::cout << odom_s2s_now << std::endl;
         return odom_s2s_now; // Eigen::Matrix4d 变换矩阵
     }
 

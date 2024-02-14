@@ -11,7 +11,7 @@
 #include <pclomp/ndt_omp.h>
 #include <pclomp/gicp_omp.h>
 #include <fast_gicp/gicp/fast_gicp.hpp>
-// #include <fast_gicp/gicp/fast_vgicp.hpp>
+#include <fast_gicp/gicp/fast_vgicp.hpp>
 #include <fast_gicp/gicp/fast_apdgicp.hpp>
 
 #ifdef USE_VGICP_CUDA
@@ -60,14 +60,14 @@ pcl::Registration<pcl::PointXYZI, pcl::PointXYZI>::Ptr select_registration_metho
   }
 #endif
   else if(registration_method == "FAST_VGICP") {
-    // std::cout << "registration: FAST_VGICP" << std::endl;
-    // fast_gicp::FastVGICP<PointT, PointT>::Ptr vgicp(new fast_gicp::FastVGICP<PointT, PointT>());
-    // vgicp->setNumThreads(pnh.param<int>("reg_num_threads", 0));
-    // vgicp->setResolution(pnh.param<double>("reg_resolution", 1.0));
-    // vgicp->setTransformationEpsilon(pnh.param<double>("reg_transformation_epsilon", 0.01));
-    // vgicp->setMaximumIterations(pnh.param<int>("reg_maximum_iterations", 64));
-    // vgicp->setCorrespondenceRandomness(pnh.param<int>("reg_correspondence_randomness", 20));
-    // return vgicp;
+    std::cout << "registration: FAST_VGICP" << std::endl;
+    fast_gicp::FastVGICP<PointT, PointT>::Ptr vgicp(new fast_gicp::FastVGICP<PointT, PointT>());
+    vgicp->setNumThreads(pnh.param<int>("reg_num_threads", 0));
+    vgicp->setResolution(pnh.param<double>("reg_resolution", 1.0));
+    vgicp->setTransformationEpsilon(pnh.param<double>("reg_transformation_epsilon", 0.01));
+    vgicp->setMaximumIterations(pnh.param<int>("reg_maximum_iterations", 64));
+    vgicp->setCorrespondenceRandomness(pnh.param<int>("reg_correspondence_randomness", 20));
+    return vgicp;
   } else if(registration_method == "ICP") {
     std::cout << "registration: ICP" << std::endl;
     pcl::IterativeClosestPoint<PointT, PointT>::Ptr icp(new pcl::IterativeClosestPoint<PointT, PointT>());

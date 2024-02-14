@@ -175,6 +175,7 @@ namespace radar_graph_slam
       graph_updated = false;
       double graph_update_interval = private_nh.param<double>("graph_update_interval", 3.0);
       double map_cloud_update_interval = private_nh.param<double>("map_cloud_update_interval", 10.0);
+      
       // 两个定时模块
       optimization_timer = mt_nh.createWallTimer(ros::WallDuration(graph_update_interval), &RadarGraphSlamNodelet::optimization_timer_callback, this);
       map_publish_timer = mt_nh.createWallTimer(ros::WallDuration(map_cloud_update_interval), &RadarGraphSlamNodelet::map_points_publish_timer_callback, this);
@@ -291,7 +292,7 @@ namespace radar_graph_slam
 
       if (sc_input_type == SCInputType::SINGLE_SCAN_FULL)
       {
-        // scan-context算法进行loop closing
+        // 将当前点云转换为scan-context格式，用于后续处理
         loop_detector->scManager->makeAndSaveScancontextAndKeys(*cloud);
       }
       // else if (sc_input_type == SCInputType::SINGLE_SCAN_FEAT) {
@@ -690,7 +691,7 @@ namespace radar_graph_slam
 
       // loop detection
       if (private_nh.param<bool>("enable_loop_closure", false))
-      {
+      { 
         std::vector<Loop::Ptr> loops = loop_detector->detect(keyframes, new_keyframes, *graph_slam);
       }
 
@@ -712,6 +713,8 @@ namespace radar_graph_slam
       // optimize the pose graph
       int num_iterations = private_nh.param<int>("g2o_solver_num_iterations", 1024);
       clock_t start_ms = clock();
+
+      // 执行图优化算法
       graph_slam->optimize(num_iterations);
       clock_t end_ms = clock();
       double time_used = double(end_ms - start_ms) / CLOCKS_PER_SEC;
@@ -794,6 +797,8 @@ namespace radar_graph_slam
       snapshot = keyframes_snapshot;
       keyframes_snapshot_mutex.unlock();
 
+      // 获取所有的keyframe
+      // 每一个keyframe保存的是那个时刻的局部点云以及变换矩阵（相对于起始时刻的变换）
       auto cloud = map_cloud_generator->generate(snapshot, map_cloud_resolution);
       if (!cloud)
       {

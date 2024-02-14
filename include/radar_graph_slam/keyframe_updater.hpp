@@ -31,7 +31,7 @@ public:
   }
 
   /**
-   * @brief decide if a new frame should be registered to the graph
+   * @brief decide if a new frame should be registered to the graph  是否为关键帧判定
    * @param pose  pose of the frame
    * @return  if true, the frame should be registered
    */
@@ -45,6 +45,7 @@ public:
     }
     
     // calculate the delta transformation from the previous keyframe
+    // 计算当前帧与之前最新的关键帧之间的姿态变化大小（过小则不认为是一个关键帧，也就是说需要前后关键帧之间需要移动一定的距离）
     Eigen::Isometry3d delta = prev_keypose.inverse() * pose;
     double dx = delta.translation().norm();
     double da = Eigen::AngleAxisd(delta.linear()).angle();

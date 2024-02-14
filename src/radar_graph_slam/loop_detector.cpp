@@ -106,7 +106,9 @@ namespace radar_graph_slam
      * @param new_keyframes   newly registered keyframes
      * @param graph_slam      pose graph
      */
-    std::vector<Loop::Ptr> LoopDetector::detect(const std::vector<KeyFrame::Ptr> &keyframes, const std::deque<KeyFrame::Ptr> &new_keyframes, radar_graph_slam::GraphSLAM &graph_slam)
+    std::vector<Loop::Ptr> LoopDetector::detect(const std::vector<KeyFrame::Ptr> &keyframes, 
+                                                const std::deque<KeyFrame::Ptr> &new_keyframes, 
+                                                radar_graph_slam::GraphSLAM &graph_slam)
     {
         std::vector<Loop::Ptr> detected_loops;
         for (const auto &new_keyframe : new_keyframes)
@@ -128,7 +130,9 @@ namespace radar_graph_slam
                     candidates.push_back(kf);
                 }
             }
-            loop = performScanContextLoopClosure(keyframes, candidates, new_keyframe); // 找与new_keyframe匹配的SC
+
+            // 找与new_keyframe匹配的SC
+            loop = performScanContextLoopClosure(keyframes, candidates, new_keyframe); 
             // auto loop = matching(candidates, new_keyframe);
             if (loop)
             {
@@ -209,7 +213,9 @@ namespace radar_graph_slam
         return candidates;
     }
 
-    Loop::Ptr LoopDetector::performScanContextLoopClosure(const std::vector<KeyFrame::Ptr> &keyframes, const std::vector<KeyFrame::Ptr> &candidate_keyframes, const KeyFrame::Ptr &new_keyframe)
+    Loop::Ptr LoopDetector::performScanContextLoopClosure(  const std::vector<KeyFrame::Ptr> &keyframes, 
+                                                            const std::vector<KeyFrame::Ptr> &candidate_keyframes, 
+                                                            const KeyFrame::Ptr &new_keyframe)
     {
         start_ms_sc = clock();
         if (candidate_keyframes.empty() == true)
@@ -219,11 +225,13 @@ namespace radar_graph_slam
         }
         std::cout << "\033[36m"
                   << " New keyframe index: " << new_keyframe->index << ". "
-                  << "Number of candidate frames: " << candidate_keyframes.size();
+                  << " Number of candidate frames: " << candidate_keyframes.size();
+
         // << "Candidate frames index: ";
         // for (auto& ckf : candidate_keyframes){
         //   std::cout << ckf->index << " ";
         // }
+
         std::cout << "\033[0m" << endl;
 
         // Detect keys, first: nn index, second: yaw diff
