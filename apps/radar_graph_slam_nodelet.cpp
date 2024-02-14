@@ -138,6 +138,7 @@ namespace radar_graph_slam
       registration = select_registration_method(private_nh);
 
       // subscribers
+      // 接收matching模块的odomTopic数据以及filtered_points数据
       odom_sub.reset(new message_filters::Subscriber<nav_msgs::Odometry>(mt_nh, odomTopic, 256));
       cloud_sub.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(mt_nh, "/filtered_points", 32));
       sync.reset(new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(32), *odom_sub, *cloud_sub));
@@ -174,6 +175,7 @@ namespace radar_graph_slam
       graph_updated = false;
       double graph_update_interval = private_nh.param<double>("graph_update_interval", 3.0);
       double map_cloud_update_interval = private_nh.param<double>("map_cloud_update_interval", 10.0);
+      // 两个定时模块
       optimization_timer = mt_nh.createWallTimer(ros::WallDuration(graph_update_interval), &RadarGraphSlamNodelet::optimization_timer_callback, this);
       map_publish_timer = mt_nh.createWallTimer(ros::WallDuration(map_cloud_update_interval), &RadarGraphSlamNodelet::map_points_publish_timer_callback, this);
 
@@ -289,6 +291,7 @@ namespace radar_graph_slam
 
       if (sc_input_type == SCInputType::SINGLE_SCAN_FULL)
       {
+        // scan-context算法进行loop closing
         loop_detector->scManager->makeAndSaveScancontextAndKeys(*cloud);
       }
       // else if (sc_input_type == SCInputType::SINGLE_SCAN_FEAT) {
@@ -869,7 +872,7 @@ namespace radar_graph_slam
       imu_marker.type = visualization_msgs::Marker::SPHERE_LIST;
 
       imu_marker.pose.orientation.w = 1.0;
-      imu_marker.scale.x = imu_marker.scale.y = imu_marker.scale.z = 0.75;
+      imu_marker.scale.x = imu_marker.scale.y = imu_marker.scale.z = 1.0;
 
       traj_marker.points.resize(keyframes.size());
       traj_marker.colors.resize(keyframes.size());
@@ -914,7 +917,7 @@ namespace radar_graph_slam
       edge_marker.type = visualization_msgs::Marker::LINE_LIST;
 
       edge_marker.pose.orientation.w = 1.0;
-      edge_marker.scale.x = 0.05;
+      edge_marker.scale.x = 0.5;
 
       edge_marker.points.resize(graph_slam->graph->edges().size() * 2);
       edge_marker.colors.resize(graph_slam->graph->edges().size() * 2);

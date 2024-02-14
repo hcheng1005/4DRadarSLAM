@@ -87,12 +87,12 @@ namespace radar_graph_slam
         msf_pose_after_update_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/msf_core/pose_after_update", 1, boost::bind(&ScanMatchingOdometryNodelet::msf_pose_callback, this, _1, true));
       }
       //******** Subscribers **********
-      ego_vel_sub.reset(new message_filters::Subscriber<geometry_msgs::TwistWithCovarianceStamped>(mt_nh, "/eagle_data/twist", 256));
-      points_sub.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(mt_nh, "/filtered_points", 32));
+      ego_vel_sub.reset(new message_filters::Subscriber<geometry_msgs::TwistWithCovarianceStamped>(mt_nh, "/eagle_data/twist", 256)); // 接收依靠雷达估计的三维速度信息
+      points_sub.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(mt_nh, "/filtered_points", 32));                     // 接收预处理后的点云
       sync.reset(new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(32), *ego_vel_sub, *points_sub));
-      sync->registerCallback(boost::bind(&ScanMatchingOdometryNodelet::pointcloud_callback, this, _1, _2));
-      imu_sub = nh.subscribe("/imu", 1024, &ScanMatchingOdometryNodelet::imu_callback, this);
-      command_sub = nh.subscribe("/command", 10, &ScanMatchingOdometryNodelet::command_callback, this);
+      sync->registerCallback(boost::bind(&ScanMatchingOdometryNodelet::pointcloud_callback, this, _1, _2)); // 主处理回调函数
+      imu_sub = nh.subscribe("/imu", 1024, &ScanMatchingOdometryNodelet::imu_callback, this);               // 接收imu信息
+      command_sub = nh.subscribe("/command", 10, &ScanMatchingOdometryNodelet::command_callback, this);     //
 
       //******** Publishers **********
       read_until_pub = nh.advertise<std_msgs::Header>("/scan_matching_odometry/read_until", 32);
@@ -171,7 +171,7 @@ namespace radar_graph_slam
         pcl::PassThrough<PointT>::Ptr passthrough(new pcl::PassThrough<PointT>());
         downsample_filter = passthrough;
       }
-      registration_s2s = select_registration_method(pnh);
+      registration_s2s = select_registration_method(pnh); // 根据配置选择不同的匹配算法 默认 FAST_APDGICP
       registration_s2m = select_registration_method(pnh);
     }
 
@@ -374,8 +374,11 @@ namespace radar_graph_slam
     }
 
     /**
-     * @brief callback for point clouds
-     * @param cloud_msg  point cloud msg
+     * @name:
+     * @description: Briefly describe the function of your function
+     * @param {TwistWithCovarianceStampedConstPtr} &twistMsg
+     * @param {PointCloud2ConstPtr} &cloud_msg
+     * @return {*}
      */
     void pointcloud_callback(const geometry_msgs::TwistWithCovarianceStampedConstPtr &twistMsg, const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
     {
@@ -387,24 +390,31 @@ namespace radar_graph_slam
       double this_cloud_time = cloud_msg->header.stamp.toSec();
       static double last_cloud_time = this_cloud_time;
 
+      // 计算前后三维位姿变化
       double dt = this_cloud_time - last_cloud_time;
       double egovel_cum_x = twistMsg->twist.twist.linear.x * dt;
       double egovel_cum_y = twistMsg->twist.twist.linear.y * dt;
       double egovel_cum_z = twistMsg->twist.twist.linear.z * dt;
       // If too large, set 0
       if (pow(egovel_cum_x, 2) + pow(egovel_cum_y, 2) + pow(egovel_cum_z, 2) > pow(max_egovel_cum, 2))
+      {
         ;
+      }
       else
+      {
         egovel_cum.block<3, 1>(0, 3) = Eigen::Vector3d(egovel_cum_x, egovel_cum_y, egovel_cum_z);
+      }
 
       last_cloud_time = this_cloud_time;
 
       pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
       pcl::fromROSMsg(*cloud_msg, *cloud);
 
-      // 执行点云匹配算法
-      // Matching
+      // 执行点云匹配算法，得到变换矩阵(从起点开始到当前位置的总变换)
+      // 第一个重点算法：Matching
       Eigen::Matrix4d pose = matching(cloud_msg->header.stamp, cloud);
+
+      std::cout << pose << std::endl;
 
       geometry_msgs::TwistWithCovariance twist = twistMsg->twist;
 
@@ -468,8 +478,8 @@ namespace radar_graph_slam
         keyframe_pose_s2s.setIdentity();
         keyframe_stamp = stamp;
         keyframe_cloud_s2s = cloud;                           // downsample(cloud);
-        registration_s2s->setInputTarget(keyframe_cloud_s2s); // Scan-to-scan
-        if (enable_scan_to_map)
+        registration_s2s->setInputTarget(keyframe_cloud_s2s); // Scan-to-scan 设置匹配目标点云
+        if (enable_scan_to_map) // 默认false
         {
           prev_trans_s2m.setIdentity();
           keyframe_pose_s2m.setIdentity();
@@ -481,12 +491,17 @@ namespace radar_graph_slam
       // auto filtered = downsample(cloud);
       auto filtered = cloud;
       // Set Source Cloud
-      registration_s2s->setInputSource(filtered);
+      registration_s2s->setInputSource(filtered); // 设置源点云
       if (enable_scan_to_map)
+      {
         registration_s2m->setInputSource(filtered);
+      }
+      
+      // std::cout << "Target cloud size: " << filtered.size() << std::endl;
+      // std::cout << "Source cloud size: " << filtered.size() << std::endl;
 
       std::string msf_source;
-      Eigen::Isometry3d msf_delta = Eigen::Isometry3d::Identity();
+      Eigen::Isometry3d msf_delta = Eigen::Isometry3d::Identity(); // 使用这个有什么意义？
 
       pcl::PointCloud<PointT>::Ptr aligned(new pcl::PointCloud<PointT>());
       Eigen::Matrix4d odom_s2s_now;
@@ -494,12 +509,13 @@ namespace radar_graph_slam
 
       // **********  Matching  **********
       Eigen::Matrix4d guess;
-      if (use_ego_vel)
+      if (use_ego_vel) // 默认false
         guess = prev_trans_s2s * egovel_cum * msf_delta.matrix();
       else
         guess = prev_trans_s2s * msf_delta.matrix();
 
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+      // 执行点云匹配算法，此处调用 pcl::Registration<PointT, PointT>::Ptr
       registration_s2s->align(*aligned, guess.cast<float>());
       chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
       double time_used = chrono::duration_cast<chrono::duration<double>>(t2 - t1).count();
@@ -508,6 +524,7 @@ namespace radar_graph_slam
       publish_scan_matching_status(stamp, cloud->header.frame_id, aligned, msf_source, msf_delta);
 
       // If not converged, use last transformation
+      // 表示校正算法是否收斂
       if (!registration_s2s->hasConverged())
       {
         NODELET_INFO_STREAM("scan matching_ has not converged!!");
@@ -538,10 +555,10 @@ namespace radar_graph_slam
       // Add abnormal judgment, that is, if the difference between the two frames matching point cloud
       // transition matrix is too large, it will be discarded
       bool thresholded = false;
-      if (enable_transform_thresholding)
+      if (enable_transform_thresholding) // true
       {
         Eigen::Matrix4d radar_delta;
-        if (enable_scan_to_map)
+        if (enable_scan_to_map)  // false
           radar_delta = prev_trans_s2m.inverse() * trans_s2m;
         else
           radar_delta = prev_trans_s2s.inverse() * trans_s2s;
@@ -557,7 +574,7 @@ namespace radar_graph_slam
         Eigen::Vector3d delta_trans_egovel;
 
         // 使用IMU信息辅助异常检测
-        if (enable_imu_thresholding)
+        if (enable_imu_thresholding) // false
         {
           // Use IMU orientation to determine whether the matching result is good or not
           sensor_msgs::Imu frame_imu;
@@ -694,7 +711,7 @@ namespace radar_graph_slam
       if (enable_scan_to_map)
         return odom_s2m_now;
       else
-        return odom_s2s_now;
+        return odom_s2s_now; // Eigen::Matrix4d 变换矩阵
     }
 
     /**

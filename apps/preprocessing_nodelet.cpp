@@ -73,8 +73,8 @@ namespace radar_graph_slam
       gt_pub = nh.advertise<nav_msgs::Odometry>("/aftmapped_to_init", 16);
 
       std::string topic_twist = private_nh.param<std::string>("topic_twist", "/eagle_data/twist"); // 后续模块会监听该报文
-      std::string topic_inlier_pc2 = private_nh.param<std::string>("topic_inlier_pc2", "/eagle_data/inlier_pc2");
-      std::string topic_outlier_pc2 = private_nh.param<std::string>("topic_outlier_pc2", "/eagle_data/outlier_pc2");
+      std::string topic_inlier_pc2 = private_nh.param<std::string>("topic_inlier_pc2", "/eagle_data/inlier_pc2"); // 静态点云
+      std::string topic_outlier_pc2 = private_nh.param<std::string>("topic_outlier_pc2", "/eagle_data/outlier_pc2"); // 动态点云
       pub_twist = nh.advertise<geometry_msgs::TwistWithCovarianceStamped>(topic_twist, 5);
       pub_inlier_pc2 = nh.advertise<sensor_msgs::PointCloud2>(topic_inlier_pc2, 5);
       pub_outlier_pc2 = nh.advertise<sensor_msgs::PointCloud2>(topic_outlier_pc2, 5);
@@ -357,7 +357,7 @@ namespace radar_graph_slam
 
         // 发布三轴车速信息
         pub_twist.publish(twist);
-        pub_inlier_pc2.publish(inlier_radar_msg);
+        pub_inlier_pc2.publish(inlier_radar_msg); // 静止点云
         pub_outlier_pc2.publish(outlier_radar_msg);
       }
       else
@@ -369,11 +369,13 @@ namespace radar_graph_slam
       pcl::fromROSMsg(inlier_radar_msg, *radarcloud_inlier);
 
       pcl::PointCloud<PointT>::ConstPtr src_cloud;
-      if (enable_dynamic_object_removal)
-        src_cloud = radarcloud_inlier;
+      if (enable_dynamic_object_removal) // 默认false
+        src_cloud = radarcloud_inlier; // 仅使用静态点云进行后续算法处理
       else
-        src_cloud = radarcloud_xyzi;
-
+      {
+        src_cloud = radarcloud_xyzi; // 使用全部点云进行后续算法处理（点云格式：xyz，intensity）
+      }
+        
       if (src_cloud->empty())
       {
         return;
@@ -400,6 +402,7 @@ namespace radar_graph_slam
         src_cloud = transformed;
       }
 
+      // 一些基础滤波操作
       pcl::PointCloud<PointT>::ConstPtr filtered = distance_filter(src_cloud);
       // filtered = passthrough(filtered);
       filtered = downsample(filtered);

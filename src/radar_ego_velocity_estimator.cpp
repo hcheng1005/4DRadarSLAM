@@ -320,7 +320,7 @@ bool RadarEgoVelocityEstimator::solve3DFull(const Matrix &radar_data,
       v_r = (HTH).ldlt().solve(H.transpose() * y);
     }
     else
-      v_r = H.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(y);
+      v_r = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(y);
 
     if (estimate_sigma) // 默认false
     {

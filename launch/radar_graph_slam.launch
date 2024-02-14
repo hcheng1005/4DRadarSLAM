@@ -10,7 +10,7 @@
   <arg name="enable_barometer" default="false" /> <!-- barometer altitude constraint, not used -->
   <arg name="barometer_edge_type" default="1" /> <!-- not used -->
   <arg name="enable_gps" default="false" />
-  <arg name="enable_dynamic_object_removal" default="false" />
+  <arg name="enable_dynamic_object_removal" default="true" />
   <arg name="enable_frontend_ego_vel" default="false" />
   <arg name="enable_preintegration" default="false" /> <!-- not used -->
 
@@ -19,7 +19,7 @@
   <arg name="keyframe_delta_angle" default="0.2612" /><!-- 10°: 0.1745 15°: 0.2612 -->
 
   <arg name="enable_transform_thresholding" default="true" />
-  <arg name="enable_loop_closure" default="false" />
+  <arg name="enable_loop_closure" default="true" />
   
   <!-- ICP NDT_OMP FAST_GICP FAST_APDGICP FAST_VGICP   -->
   <arg name="registration_method" default="FAST_APDGICP" />
@@ -196,9 +196,9 @@
   <node pkg="rviz" type="rviz" name="rviz_slam" args="-d $(find radar_graph_slam)/rviz/radar_graph_slam.rviz" respawn="true"/>
 
   <!--- Rosbag Play -->
-  <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_carpark1.launch" />
+  <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_carpark1.launch" /> -->
   <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_carpark3.launch" /> -->
-  <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_garden.launch" /> -->
+  <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_garden.launch" />
   <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_nanyanglink.launch" /> -->
   <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_ntuloop1.launch" /> -->
   <!-- <include file="$(find radar_graph_slam)/launch/rosbag_play_radar_ntuloop2.launch" /> -->
